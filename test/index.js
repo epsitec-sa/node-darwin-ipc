@@ -2,14 +2,14 @@
 
 const assert = require("assert");
 const lib = require("../");
-const synchronize = require("node-windows-synchronize");
+//const synchronize = require("node-windows-synchronize");
+
 
 describe("CreateSharedMemory", function () {
   it("should create shared memory", function () {
     const handle = lib.createSharedMemory(
-      "Local\\TestSharedMemory",
-      lib.sharedMemoryPageAccess.ReadWrite,
-      lib.sharedMemoryFileMapAccess.AllAccess,
+      "/TestSharedMemory",
+      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
       4096
     );
 
@@ -22,14 +22,12 @@ describe("CreateSharedMemory", function () {
 describe("OpenSharedMemory", function () {
   it("should create and open shared memory", function () {
     const cHandle = lib.createSharedMemory(
-      "Local\\TestSharedMemory",
-      lib.sharedMemoryPageAccess.ReadWrite,
-      lib.sharedMemoryFileMapAccess.AllAccess,
+      "/TestSharedMemory",
+      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
       4096
     );
     const oHandle = lib.openSharedMemory(
-      "Local\\TestSharedMemory",
-      lib.sharedMemoryFileMapAccess.AllAccess,
+      "/TestSharedMemory",
       4096
     );
 
@@ -40,7 +38,7 @@ describe("OpenSharedMemory", function () {
     lib.closeSharedMemory(cHandle);
   });
 });
-
+/*
 describe("WriteSharedMemory", function () {
   it("should create and write into shared memory", function () {
     const handle = lib.createSharedMemory(
@@ -113,69 +111,5 @@ describe("WriteSharedMemorySerial", function () {
     lib.closeSharedMemory(smHandle);
   });
 });
+*/
 
-describe("MarshalHwnd", function () {
-  it("should convert to a hwnd a string handle and reconvert again", function () {
-    const origHandle = "0x21892";
-
-    const hwnd = lib.stringToHwnd(origHandle);
-    const finalHandle = lib.hwndToString(hwnd);
-
-    assert.strictEqual(finalHandle, origHandle);
-  });
-});
-
-describe("SendCopyDataMessageTimeout", function () {
-  it("should send a WM_COPYDATA message", function () {
-    const targetHandle = lib.stringToHwnd("0x21892");
-    const senderHandle = lib.stringToHwnd("0x0");
-
-    assert.ok(targetHandle);
-    assert.ok(senderHandle);
-
-    lib.sendCopyDataMessageTimeout(
-      targetHandle,
-      senderHandle,
-      "hello world",
-      "utf16",
-      null,
-      5000
-    );
-  });
-});
-
-describe("CreateCopyDataListener", function () {
-  it("should create a WM_COPYDATA listener", function (done) {
-    const senderHandle = lib.stringToHwnd("0x0");
-    const msgToSend = "aiuéoäàà";
-    let rcvMsg = "";
-
-    const res = lib.createCopyDataListener((msg) => {
-      rcvMsg = msg;
-    });
-
-    assert.ok(res.dataListener);
-    assert.notStrictEqual(res.listenerHwnd, "0x0");
-
-    const targetHandle = lib.stringToHwnd(res.listenerHwnd);
-
-    lib.sendCopyDataMessageTimeout(
-      targetHandle,
-      senderHandle,
-      msgToSend,
-      "utf8",
-      null,
-      500
-    );
-
-    setTimeout(() => {
-      lib.disposeCopyDataListener(res.dataListener);
-
-      done(
-        rcvMsg !== msgToSend
-          ? new Error(`Expected ${msgToSend}, received ${rcvMsg}`)
-          : null
-      );
-    }, 1000);
-  });
-});
