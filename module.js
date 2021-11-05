@@ -1,5 +1,6 @@
 const sharedMemoryAddon = require("./build/Release/sharedMemory");
-const messagingAddon = require("bindings")("messaging.node");
+
+const sharedMemoryNameMaxLength = 32;
 
 function isBuffer(value) {
   return (
@@ -32,30 +33,24 @@ function bufferFromData(data, encoding) {
   return Buffer.from(data);
 }
 
-const sendMessageTimeoutFlags = {
-  SMTO_NORMAL: 0x00,
-  SMTO_BLOCK: 0x01,
-  SMTO_ABORTIFHUNG: 0x02,
-  SMTO_NOTIMEOUTIFNOTHUNG: 0x08,
-  SMTO_ERRORONEXIT: 0x20, // WARNING: this flag is only available on Windows Vista and higher. If you use it on Windows XP SP3 or older, SendMessageTimeout will return ERROR_INVALID_PARAMETER.
-};
-
 // shared memory
 function createSharedMemory(
   name,
-  pageAccess,
-  fileMapAccess,
-  memorySize,
-  sddlString
+  flags,
+  fileMode,
+  memorySize
 ) {
+  if (name.length > sharedMemoryNameMaxLength) {
+    throw `shared memory name length cannot be greater than ${sharedMemoryNameMaxLength}`;
+  }
+
   const handle = Buffer.alloc(sharedMemoryAddon.sizeof_SharedMemoryHandle);
 
   const res = sharedMemoryAddon.CreateSharedMemory(
     name,
-    pageAccess,
-    fileMapAccess,
+    flags,
+    fileMode,
     memorySize,
-    sddlString || "",
     handle
   );
 
@@ -68,12 +63,17 @@ function createSharedMemory(
   return handle;
 }
 
-function openSharedMemory(name, fileMapAccess, memorySize) {
+function openSharedMemory(name, flags, fileMode, memorySize) {
+  if (name.length > sharedMemoryNameMaxLength) {
+    throw `shared memory name length cannot be greater than ${sharedMemoryNameMaxLength}`;
+  }
+
   const handle = Buffer.alloc(sharedMemoryAddon.sizeof_SharedMemoryHandle);
 
   const res = sharedMemoryAddon.OpenSharedMemory(
     name,
-    fileMapAccess,
+    flags,
+    fileMode,
     memorySize,
     handle
   );
@@ -118,79 +118,6 @@ function closeSharedMemory(handle) {
   sharedMemoryAddon.CloseSharedMemory(handle);
 }
 
-// messaging
-
-function stringToHwnd(strHwnd) {
-  const handle = Buffer.alloc(messagingAddon.sizeof_WindowHandle);
-
-  const res = messagingAddon.StringToHwnd(strHwnd, handle);
-
-  if (res > 0) {
-    throw `could not convert string ${strHwnd} to hwnd: ${res}`;
-  }
-
-  return handle;
-}
-
-function hwndToString(hwnd) {
-  const hwndVal = messagingAddon.HwndToUint(hwnd);
-
-  return `0x${hwndVal.toString(16)}`;
-}
-
-function sendCopyDataMessageTimeout(
-  targetHwnd,
-  senderHwnd,
-  data,
-  encoding,
-  sendMessageFlags,
-  timeout
-) {
-  const buf = bufferFromData(data, encoding);
-  const finalFlags =
-    sendMessageFlags ||
-    sendMessageTimeoutFlags.SMTO_NOTIMEOUTIFNOTHUNG |
-      sendMessageTimeoutFlags.SMTO_ERRORONEXIT;
-  const res = messagingAddon.SendCopyDataMessageTimeout(
-    targetHwnd,
-    senderHwnd,
-    buf,
-    buf.byteLength,
-    finalFlags,
-    timeout || 2000
-  );
-
-  if (res === 1) {
-    throw `could not send WM_COPYDATA message`;
-  }
-}
-
-function createCopyDataListener(onMessage) {
-  const dataListener = Buffer.alloc(messagingAddon.sizeof_CopyDataListener);
-
-  const hwnd = messagingAddon.CreateCopyDataListener(
-    dataListener,
-    onMessage || function () {}
-  );
-
-  if (hwnd === 0) {
-    throw `could not create WM_COPYDATA listener`;
-  }
-
-  return {
-    dataListener,
-    listenerHwnd: `0x${hwnd.toString(16)}`,
-  };
-}
-
-function disposeCopyDataListener(listener) {
-  const res = messagingAddon.DisposeCopyDataListener(listener);
-
-  if (res === 1) {
-    throw `could not dispose WM_COPYDATA listener`;
-  }
-}
-
 module.exports = {
   createSharedMemory,
   openSharedMemory,
@@ -207,14 +134,5 @@ module.exports = {
     Read: 0x0004,
     Write: 0x0002,
     AllAccess: 0xf001f,
-  },
-
-  stringToHwnd,
-  hwndToString,
-
-  sendCopyDataMessageTimeout,
-  sendMessageTimeoutFlags,
-
-  createCopyDataListener,
-  disposeCopyDataListener,
+  }
 };

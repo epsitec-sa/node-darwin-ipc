@@ -1,10 +1,10 @@
 {
-  "name": "node-windows-ipc",
-  "version": "0.1.1",
-  "description": "https://github.com/epsitec-sa/node-windows-ipc",
+  "name": "node-darwin-ipc",
+  "version": "0.1.0",
+  "description": "https://github.com/epsitec-sa/node-darwin-ipc",
   "main": "module.js",
   "os": [
-    "win32"
+    "darwin"
   ],
   "dependencies": {
     "bindings": "~1.2.1",
@@ -13,8 +13,7 @@
   },
   "devDependencies": {
     "mocha": "^2.3.3",
-    "node-gyp": "^3.0.3",
-    "node-windows-synchronize": "0.1.1"
+    "node-gyp": "^3.0.3"
   },
   "scripts": {
     "configure": "node-gyp configure",
@@ -24,7 +23,7 @@
   "gypfile": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/epsitec-sa/node-windows-ipc.git"
+    "url": "git+https://github.com/epsitec-sa/node-darwin-ipc.git"
   },
   "engines": {
     "node": ">=10.16.0"
@@ -32,7 +31,7 @@
   "author": "Jonny Quarta",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/epsitec-sa/node-windows-ipc/issues"
+    "url": "https://github.com/epsitec-sa/node-darwin-ipc/issues"
   },
-  "homepage": "https://github.com/epsitec-sa/node-windows-ipc#readme"
+  "homepage": "https://github.com/epsitec-sa/node-darwin-ipc#readme"
 }
