@@ -9,6 +9,8 @@
 #include <errno.h>
 
 #define SHM_NAME_MAX 32
+#define SHM_FLAGS_CREATE (O_CREAT | O_RDWR | O_EXCL)
+#define SHM_FLAGS_OPEN (O_RDONLY)
 
 struct SharedMemoryHandle
 {
@@ -18,28 +20,27 @@ struct SharedMemoryHandle
   int size;
 };
 
-// string name, int sharedMemoryFlags, int sharedMemoryFileMode, int memSize, SharedMemoryHandle* memoryHandle -> int
+// string name, int sharedMemoryFileMode, int memSize, SharedMemoryHandle* memoryHandle -> int
 NAPI_METHOD(CreateSharedMemory)
 {
   int result = 0;
 
-  NAPI_ARGV(5)
+  NAPI_ARGV(4)
 
   NAPI_ARGV_UTF8(sharedMemoryName, 1000, 0)
-  NAPI_ARGV_INT32(sharedMemoryFlags, 1)
-  NAPI_ARGV_INT32(sharedMemoryFileMode, 2)
-  NAPI_ARGV_INT32(memorySize, 3)
-  NAPI_ARGV_BUFFER_CAST(struct SharedMemoryHandle *, memoryHandle, 4)
+  NAPI_ARGV_INT32(sharedMemoryFileMode, 1)
+  NAPI_ARGV_INT32(memorySize, 2)
+  NAPI_ARGV_BUFFER_CAST(struct SharedMemoryHandle *, memoryHandle, 3)
 
 
-  memoryHandle->fileDescriptor = shm_open(sharedMemoryName, sharedMemoryFlags, sharedMemoryFileMode);
+  memoryHandle->fileDescriptor = shm_open(sharedMemoryName, SHM_FLAGS_CREATE, sharedMemoryFileMode);
   if (memoryHandle->fileDescriptor == -1) {
     if (errno == EEXIST) { // shared memory already exists (has not been unlinked and is abandoned)
       printf("shm is abandoned\n");
       if (shm_unlink(sharedMemoryName) != 0) {
         NAPI_RETURN_INT32(errno)
       }
-      memoryHandle->fileDescriptor = shm_open(sharedMemoryName, sharedMemoryFlags, sharedMemoryFileMode);
+      memoryHandle->fileDescriptor = shm_open(sharedMemoryName, SHM_FLAGS_CREATE, sharedMemoryFileMode);
       if (memoryHandle->fileDescriptor == -1) {
         NAPI_RETURN_INT32(errno)
       }
@@ -64,20 +65,18 @@ NAPI_METHOD(CreateSharedMemory)
   NAPI_RETURN_INT32(result)
 }
 
-// string name, int sharedMemoryFlags, int sharedMemoryFileMode, int memSize, SharedMemoryHandle* memoryHandle -> int
+// string name, int memSize, SharedMemoryHandle* memoryHandle -> int
 NAPI_METHOD(OpenSharedMemory)
 {
   int result = 0;
 
-  NAPI_ARGV(5)
+  NAPI_ARGV(3)
 
   NAPI_ARGV_UTF8(sharedMemoryName, 1000, 0)
-  NAPI_ARGV_INT32(sharedMemoryFlags, 1)
-  NAPI_ARGV_INT32(sharedMemoryFileMode, 2)
-  NAPI_ARGV_INT32(memorySize, 3)
-  NAPI_ARGV_BUFFER_CAST(struct SharedMemoryHandle *, memoryHandle, 4)
+  NAPI_ARGV_INT32(memorySize, 1)
+  NAPI_ARGV_BUFFER_CAST(struct SharedMemoryHandle *, memoryHandle, 2)
 
-  memoryHandle->fileDescriptor = shm_open(sharedMemoryName, sharedMemoryFlags, sharedMemoryFileMode);
+  memoryHandle->fileDescriptor = shm_open(sharedMemoryName, SHM_FLAGS_OPEN, S_IRUSR);
   if (memoryHandle->fileDescriptor == -1) {
     NAPI_RETURN_INT32(errno)
   }
