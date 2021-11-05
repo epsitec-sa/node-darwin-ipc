@@ -83,7 +83,7 @@ function writeSharedData(handle, data, encoding) {
   const buf = bufferFromData(data, encoding);
   const res = sharedMemoryAddon.WriteSharedData(handle, buf, buf.byteLength);
 
-  if (res === 1) {
+  if (res === -1) {
     throw `data size (${data.length()}) exceeded maximum shared memory size`;
   }
 }
@@ -94,7 +94,7 @@ function readSharedData(handle, encoding, bufferSize) {
 
   const res = sharedMemoryAddon.ReadSharedData(handle, buf, dataSize);
 
-  if (res === 1) {
+  if (res === -1) {
     throw `data size (${data.length()}) exceeded maximum shared memory size`;
   }
 

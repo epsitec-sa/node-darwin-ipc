@@ -38,13 +38,12 @@ describe("OpenSharedMemory", function () {
     lib.closeSharedMemory(cHandle);
   });
 });
-/*
+
 describe("WriteSharedMemory", function () {
   it("should create and write into shared memory", function () {
     const handle = lib.createSharedMemory(
-      "Local\\TestSharedMemory",
-      lib.sharedMemoryPageAccess.ReadWrite,
-      lib.sharedMemoryFileMapAccess.AllAccess,
+      "/TestSharedMemory",
+      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
       4096
     );
 
@@ -59,30 +58,28 @@ describe("WriteSharedMemory", function () {
 describe("ReadSharedMemory", function () {
   it("should create, open, write and read from shared memory", function () {
     const cHandle = lib.createSharedMemory(
-      "Local\\TestSharedMemory",
-      lib.sharedMemoryPageAccess.ReadWrite,
-      lib.sharedMemoryFileMapAccess.AllAccess,
+      "/TestSharedMemory",
+      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
       4096
     );
     const oHandle = lib.openSharedMemory(
-      "Local\\TestSharedMemory",
-      lib.sharedMemoryFileMapAccess.AllAccess,
+      "/TestSharedMemory",
       4096
     );
 
     assert.ok(cHandle);
     assert.ok(oHandle);
 
-    lib.writeSharedData(cHandle, "hello world!!");
+    lib.writeSharedData(cHandle, "hello wòrld!!");
     const text = lib.readSharedData(oHandle, "utf8");
 
-    assert.strictEqual("hello world!!", text);
+    assert.strictEqual("hello wòrld!!", text);
 
     lib.closeSharedMemory(oHandle);
     lib.closeSharedMemory(cHandle);
   });
 });
-
+/*
 describe("WriteSharedMemorySerial", function () {
   it("should create and write in a serial way to shared memory", function () {
     const smHandle = lib.createSharedMemory(

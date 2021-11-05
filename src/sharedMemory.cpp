@@ -105,11 +105,11 @@ NAPI_METHOD(WriteSharedData)
 
   if (dataSize > memoryHandle->size)
   {
-    result = 1;
+    result = -1;
     NAPI_RETURN_INT32(result)
   }
 
-  //RtlMoveMemory((PVOID)memoryHandle->pBuf, data, dataSize);
+  strncpy(memoryHandle->memoryAddr, data, dataSize);
 
   NAPI_RETURN_INT32(result)
 }
@@ -127,11 +127,11 @@ NAPI_METHOD(ReadSharedData)
 
   if (dataSize > memoryHandle->size)
   {
-    result = 1;
+    result = -1;
     NAPI_RETURN_INT32(result)
   }
 
-  //RtlMoveMemory(data, (PVOID)memoryHandle->pBuf, memoryHandle->size);
+  strncpy(data, memoryHandle->memoryAddr, memoryHandle->size);
 
   NAPI_RETURN_INT32(result)
 }
