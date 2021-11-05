@@ -12,9 +12,9 @@
 
 struct SharedMemoryHandle
 {
-  const char[SHM_NAME_MAX] name;
+  char name[SHM_NAME_MAX];
   int fileDescriptor;
-  const char* memoryAddr;
+  char* memoryAddr;
   int size;
 };
 
@@ -49,12 +49,12 @@ NAPI_METHOD(CreateSharedMemory)
   }
 
   // extend the shmem size
-  if (ftruncate(fd, memorySize) != 0) {
+  if (ftruncate(memoryHandle->fileDescriptor, memorySize) != 0) {
     NAPI_RETURN_INT32(errno)
   }
 
   // map some memory to shmem segment to write to.
-  memoryHandle->memoryAddr = mmap(NULL, memorySize, PROT_WRITE, MAP_SHARED, memoryHandle->fileDescriptor, 0);
+  memoryHandle->memoryAddr = (char*)mmap(NULL, memorySize, PROT_WRITE, MAP_SHARED, memoryHandle->fileDescriptor, 0);
   if (memoryHandle->memoryAddr == MAP_FAILED) {
     NAPI_RETURN_INT32(errno)
   }
@@ -83,7 +83,7 @@ NAPI_METHOD(OpenSharedMemory)
   }
 
   // map some memory to shmem segment to write to.
-  memoryHandle->memoryAddr = mmap(NULL, memorySize, PROT_READ, MAP_SHARED, memoryHandle->fileDescriptor, 0);
+  memoryHandle->memoryAddr = (char*)mmap(NULL, memorySize, PROT_READ, MAP_SHARED, memoryHandle->fileDescriptor, 0);
   if (memoryHandle->memoryAddr == MAP_FAILED) {
     NAPI_RETURN_INT32(errno)
   }
