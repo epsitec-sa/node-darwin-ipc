@@ -1,0 +1,38 @@
+{
+  "name": "node-windows-ipc",
+  "version": "0.1.1",
+  "description": "https://github.com/epsitec-sa/node-windows-ipc",
+  "main": "module.js",
+  "os": [
+    "win32"
+  ],
+  "dependencies": {
+    "bindings": "~1.2.1",
+    "napi-macros": "^2.0.0",
+    "node-addon-api": "^4.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^2.3.3",
+    "node-gyp": "^3.0.3",
+    "node-windows-synchronize": "0.1.1"
+  },
+  "scripts": {
+    "configure": "node-gyp configure",
+    "build": "node-gyp build",
+    "test": "mocha"
+  },
+  "gypfile": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/epsitec-sa/node-windows-ipc.git"
+  },
+  "engines": {
+    "node": ">=10.16.0"
+  },
+  "author": "Jonny Quarta",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/epsitec-sa/node-windows-ipc/issues"
+  },
+  "homepage": "https://github.com/epsitec-sa/node-windows-ipc#readme"
+}
