@@ -113,7 +113,7 @@ function initializeMachPortSender(bootstrapPortName) {
   );
 
   if (res !== 0) {
-    throw `could not initialize mach port ${bootstrapPortName}: ${res}`;
+    throw `could not initialize mach port sender ${bootstrapPortName}: ${res}`;
   }
 
   return handle;
@@ -127,7 +127,7 @@ function initializeMachPortReceiver(bootstrapPortName) {
   );
 
   if (res !== 0) {
-    throw `could not initialize mach port ${bootstrapPortName}: ${res}`;
+    throw `could not initialize mach port receiver ${bootstrapPortName}: ${res}`;
   }
 
   return handle;
@@ -151,11 +151,11 @@ function sendMachPortMessage(handle, msgType, data, encoding) {
 
 function waitMachPortMessage(handle, encoding) {
   const buf = Buffer.alloc(machMessageMaxContentLength);
-  const msgType = Buffer.alloc(1);
+  const msgTypeHandle = Buffer.alloc(messagingAddon.sizeof_MsgTypeHandle);
 
-  const res = sharedMemoryAddon.ReadSharedData(
+  const res = messagingAddon.WaitMachPortMessage(
     handle,
-    msgType,
+    msgTypeHandle,
     buf,
     machMessageMaxContentLength
   );
@@ -166,15 +166,20 @@ function waitMachPortMessage(handle, encoding) {
     throw `could not wait mach port message: ${res}`;
   }
 
-  if (encoding) {
-    // is a string
-    return buf.toString(encoding).replace(/\0/g, ""); // remove trailing \0 characters
-  }
-
   return {
-    msgType: msgType[0],
-    content: buf,
+    msgType: msgTypeHandle[0].valueOf(),
+    content: encoding
+      ? buf.toString(encoding).replace(/\0/g, "") // is a string, remove trailing \0 characters
+      : buf,
   };
+}
+
+function closeMachPort(handle) {
+  const res = messagingAddon.CloseMachPort(handle);
+
+  if (res !== 0) {
+    throw `could not close mach port: ${res}`;
+  }
 }
 
 module.exports = {
@@ -188,6 +193,7 @@ module.exports = {
   initializeMachPortReceiver,
   sendMachPortMessage,
   waitMachPortMessage,
+  closeMachPort,
 
   sharedMemoryFileMode: {
     S_IRWXU: 0000700 /* [XSI] RWX mask for owner */,

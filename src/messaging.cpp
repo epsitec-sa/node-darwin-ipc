@@ -28,6 +28,11 @@ struct MachPortHandle
   mach_port_t machPort;
 };
 
+struct MsgTypeHandle
+{
+  int msgType;
+};
+
 // string bootstrapPortName, MachPortHandle* machPortHandle -> int
 NAPI_METHOD(InitializeMachPortSender)
 {
@@ -90,7 +95,7 @@ NAPI_METHOD(InitializeMachPortReceiver)
   NAPI_RETURN_INT32(0)
 }
 
-// MachPortHandle* machPortHandle, int msgType, const char* content, int contentLength -> int
+// MachPortHandle* machPortHandle, int msgType, const byte* content, int contentLength -> int
 NAPI_METHOD(SendMachPortMessage)
 {
   NAPI_ARGV(4)
@@ -112,6 +117,8 @@ NAPI_METHOD(SendMachPortMessage)
   message.header.msgh_local_port = MACH_PORT_NULL;
 
   message.msgType = msgType;
+
+  memset(message.content, 0, MACH_MESSAGE_CONTENT_LENGTH);
   strncpy(message.content, content, contentLength);
 
   // Send the message.
@@ -132,13 +139,13 @@ NAPI_METHOD(SendMachPortMessage)
   NAPI_RETURN_INT32(0)
 }
 
-// MachPortHandle* machPortHandle, int* msgType, char* msgBuffer, int msgBufferLength -> int
+// MachPortHandle* machPortHandle, MsgTypeHandle* msgTypeHandle, char* msgBuffer, int msgBufferLength -> int
 NAPI_METHOD(WaitMachPortMessage)
 {
   NAPI_ARGV(4)
 
   NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 0)
-  NAPI_ARGV_BUFFER_CAST(int *, msgType, 1)
+  NAPI_ARGV_BUFFER_CAST(struct MsgTypeHandle *, msgTypeHandle, 1)
   NAPI_ARGV_BUFFER_CAST(char *, msgBuffer, 2)
   NAPI_ARGV_INT32(msgBufferLength, 3)
   mach_message_receive message;
@@ -163,7 +170,23 @@ NAPI_METHOD(WaitMachPortMessage)
   }
 
   strncpy(msgBuffer, message.content, MACH_MESSAGE_CONTENT_LENGTH);
-  *msgType = message.msgType;
+  msgTypeHandle->msgType = message.msgType;
+
+  NAPI_RETURN_INT32(0)
+}
+
+// MachPortHandle* machPortHandle -> int
+NAPI_METHOD(CloseMachPort)
+{
+  NAPI_ARGV(1)
+
+  NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 0)
+
+  kern_return_t kr = mach_port_deallocate(mach_task_self(), machPortHandle->machPort);
+  if (kr != KERN_SUCCESS)
+  {
+    NAPI_RETURN_INT32(kr)
+  }
 
   NAPI_RETURN_INT32(0)
 }
@@ -174,7 +197,10 @@ NAPI_INIT()
   NAPI_EXPORT_FUNCTION(InitializeMachPortReceiver)
   NAPI_EXPORT_FUNCTION(SendMachPortMessage)
   NAPI_EXPORT_FUNCTION(WaitMachPortMessage)
+  NAPI_EXPORT_FUNCTION(CloseMachPort)
 
   NAPI_EXPORT_SIZEOF_STRUCT(MachPortHandle)
   NAPI_EXPORT_ALIGNMENTOF(MachPortHandle)
+  NAPI_EXPORT_SIZEOF_STRUCT(MsgTypeHandle)
+  NAPI_EXPORT_ALIGNMENTOF(MsgTypeHandle)
 }
