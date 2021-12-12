@@ -23,31 +23,39 @@ typedef struct mach_message_receive
   mach_msg_trailer_t trailer;
 } mach_message_receive;
 
-// string bootstrapPortName -> int
+struct MachPortHandle
+{
+  mach_port_t machPort;
+};
+
+// string bootstrapPortName, MachPortHandle* machPortHandle -> int
 NAPI_METHOD(InitializeMachPortSender)
 {
-  NAPI_ARGV(1)
+  NAPI_ARGV(2)
 
   NAPI_ARGV_UTF8(bootstrapPortName, 1000, 0)
+  NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 1)
 
   // Lookup the receiver port using the bootstrap server.
   mach_port_t port;
   kern_return_t kr = bootstrap_look_up(bootstrap_port, bootstrapPortName, &port);
   if (kr != KERN_SUCCESS)
   {
-    printf("bootstrap_look_up() failed with code 0x%x\n", kr);
-    NAPI_RETURN_INT32(-1)
+    NAPI_RETURN_INT32(kr)
   }
 
-  NAPI_RETURN_INT32(port)
+  machPortHandle->machPort = port;
+
+  NAPI_RETURN_INT32(0)
 }
 
-// string bootstrapPortName -> int
+// string bootstrapPortName, MachPortHandle* machPortHandle -> int
 NAPI_METHOD(InitializeMachPortReceiver)
 {
-  NAPI_ARGV(1)
+  NAPI_ARGV(2)
 
   NAPI_ARGV_UTF8(bootstrapPortName, 1000, 0)
+  NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 1)
 
   // Create a new port.
   mach_port_t port;
@@ -55,7 +63,7 @@ NAPI_METHOD(InitializeMachPortReceiver)
   if (kr != KERN_SUCCESS)
   {
     printf("mach_port_allocate() failed with code 0x%x\n", kr);
-    NAPI_RETURN_INT32(-1)
+    NAPI_RETURN_INT32(kr)
   }
   printf("mach_port_allocate() created port with name %d\n", port);
 
@@ -64,7 +72,7 @@ NAPI_METHOD(InitializeMachPortReceiver)
   if (kr != KERN_SUCCESS)
   {
     printf("mach_port_insert_right() failed with code 0x%x\n", kr);
-    NAPI_RETURN_INT32(-2)
+    NAPI_RETURN_INT32(kr)
   }
   printf("mach_port_insert_right() inserted a send right\n");
 
@@ -73,37 +81,38 @@ NAPI_METHOD(InitializeMachPortReceiver)
   if (kr != KERN_SUCCESS)
   {
     printf("bootstrap_register() failed with code 0x%x\n", kr);
-    NAPI_RETURN_INT32(-3)
+    NAPI_RETURN_INT32(kr)
   }
   printf("bootstrap_register()'ed our port\n");
 
-  NAPI_RETURN_INT32(port)
+  machPortHandle->machPort = port;
+
+  NAPI_RETURN_INT32(0)
 }
 
-// long machPort, int msgType, const char* content -> int
+// MachPortHandle* machPortHandle, int msgType, const char* content, int contentLength -> int
 NAPI_METHOD(SendMachPortMessage)
 {
-  NAPI_ARGV(3)
+  NAPI_ARGV(4)
 
-  NAPI_ARGV_INT32(machPort, 0)
+  NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 0)
   NAPI_ARGV_INT32(msgType, 1)
   NAPI_ARGV_BUFFER_CAST(const char *, content, 2)
+  NAPI_ARGV_INT32(contentLength, 3)
 
   mach_message_send message;
 
-  size_t contentLength = strnlen(content, MACH_MESSAGE_CONTENT_LENGTH);
   if (contentLength > MACH_MESSAGE_CONTENT_LENGTH)
   {
-    printf("the message length if greater than %d\n", MACH_MESSAGE_CONTENT_LENGTH);
-    NAPI_RETURN_INT32(1)
+    NAPI_RETURN_INT32(-1)
   }
 
   message.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
-  message.header.msgh_remote_port = (mach_port_t)machPort;
+  message.header.msgh_remote_port = machPortHandle->machPort;
   message.header.msgh_local_port = MACH_PORT_NULL;
 
   message.msgType = msgType;
-  strcpy(message.content, content);
+  strncpy(message.content, content, contentLength);
 
   // Send the message.
   kern_return_t kr = mach_msg(
@@ -117,19 +126,18 @@ NAPI_METHOD(SendMachPortMessage)
   );
   if (kr != KERN_SUCCESS)
   {
-    printf("mach_msg() failed with code 0x%x\n", kr);
-    NAPI_RETURN_INT32(2)
+    NAPI_RETURN_INT32(kr)
   }
 
   NAPI_RETURN_INT32(0)
 }
 
-// long machPort, int* msgType, char* msgBuffer, int msgBufferLength -> int
+// MachPortHandle* machPortHandle, int* msgType, char* msgBuffer, int msgBufferLength -> int
 NAPI_METHOD(WaitMachPortMessage)
 {
   NAPI_ARGV(4)
 
-  NAPI_ARGV_INT32(machPort, 0)
+  NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 0)
   NAPI_ARGV_BUFFER_CAST(int *, msgType, 1)
   NAPI_ARGV_BUFFER_CAST(char *, msgBuffer, 2)
   NAPI_ARGV_INT32(msgBufferLength, 3)
@@ -137,23 +145,21 @@ NAPI_METHOD(WaitMachPortMessage)
 
   if (msgBufferLength < MACH_MESSAGE_CONTENT_LENGTH)
   {
-    printf("the receive buffer length if less than %d\n", MACH_MESSAGE_CONTENT_LENGTH);
-    NAPI_RETURN_INT32(1)
+    NAPI_RETURN_INT32(-1)
   }
 
   kern_return_t kr = mach_msg(
-      &message.header,       // Same as (mach_msg_header_t *) &message.
-      MACH_RCV_MSG,          // Options. We're receiving a message.
-      0,                     // Size of the message being sent, if sending.
-      sizeof(message),       // Size of the buffer for receiving.
-      (mach_port_t)machPort, // The port to receive a message on.
+      &message.header,          // Same as (mach_msg_header_t *) &message.
+      MACH_RCV_MSG,             // Options. We're receiving a message.
+      0,                        // Size of the message being sent, if sending.
+      sizeof(message),          // Size of the buffer for receiving.
+      machPortHandle->machPort, // The port to receive a message on.
       MACH_MSG_TIMEOUT_NONE,
       MACH_PORT_NULL // Port for the kernel to send notifications about this message to.
   );
   if (kr != KERN_SUCCESS)
   {
-    printf("mach_msg() failed with code 0x%x\n", kr);
-    NAPI_RETURN_INT32(2)
+    NAPI_RETURN_INT32(kr)
   }
 
   strncpy(msgBuffer, message.content, MACH_MESSAGE_CONTENT_LENGTH);
@@ -168,4 +174,7 @@ NAPI_INIT()
   NAPI_EXPORT_FUNCTION(InitializeMachPortReceiver)
   NAPI_EXPORT_FUNCTION(SendMachPortMessage)
   NAPI_EXPORT_FUNCTION(WaitMachPortMessage)
+
+  NAPI_EXPORT_SIZEOF_STRUCT(MachPortHandle)
+  NAPI_EXPORT_ALIGNMENTOF(MachPortHandle)
 }
