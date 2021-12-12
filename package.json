@@ -1,6 +1,6 @@
 {
   "name": "node-darwin-ipc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "https://github.com/epsitec-sa/node-darwin-ipc",
   "main": "module.js",
   "os": [
