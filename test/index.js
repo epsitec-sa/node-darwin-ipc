@@ -4,12 +4,11 @@ const assert = require("assert");
 const lib = require("../");
 //const synchronize = require("node-windows-synchronize");
 
-
 describe("CreateSharedMemory", function () {
   it("should create shared memory", function () {
     const handle = lib.createSharedMemory(
       "/TestSharedMemory",
-      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
+      lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR,
       4096
     );
 
@@ -23,13 +22,10 @@ describe("OpenSharedMemory", function () {
   it("should create and open shared memory", function () {
     const cHandle = lib.createSharedMemory(
       "/TestSharedMemory",
-      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
+      lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR,
       4096
     );
-    const oHandle = lib.openSharedMemory(
-      "/TestSharedMemory",
-      4096
-    );
+    const oHandle = lib.openSharedMemory("/TestSharedMemory", 4096);
 
     assert.ok(cHandle);
     assert.ok(oHandle);
@@ -43,7 +39,7 @@ describe("WriteSharedMemory", function () {
   it("should create and write into shared memory", function () {
     const handle = lib.createSharedMemory(
       "/TestSharedMemory",
-      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
+      lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR,
       4096
     );
 
@@ -59,13 +55,10 @@ describe("ReadSharedMemory", function () {
   it("should create, open, write and read from shared memory", function () {
     const cHandle = lib.createSharedMemory(
       "/TestSharedMemory",
-      (lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR),
+      lib.sharedMemoryFileMode.S_IRUSR | lib.sharedMemoryFileMode.S_IWUSR,
       4096
     );
-    const oHandle = lib.openSharedMemory(
-      "/TestSharedMemory",
-      4096
-    );
+    const oHandle = lib.openSharedMemory("/TestSharedMemory", 4096);
 
     assert.ok(cHandle);
     assert.ok(oHandle);
@@ -110,3 +103,59 @@ describe("WriteSharedMemorySerial", function () {
 });
 */
 
+describe("CreateMachPortReceiver", function () {
+  it("should create a mach port receiver", function () {
+    const handle = lib.initializeMachPortReceiver("testMachPort1");
+
+    assert.ok(handle);
+
+    lib.closeMachPort(handle);
+  });
+});
+
+describe("CreateMachPortSenderAndReceiver", function () {
+  it("should create a mach port sender and receiver", function () {
+    const rHandle = lib.initializeMachPortReceiver("testMachPort2");
+    const sHandle = lib.initializeMachPortSender("testMachPort2");
+
+    assert.ok(rHandle);
+    assert.ok(sHandle);
+
+    lib.closeSharedMemory(sHandle);
+    lib.closeSharedMemory(rHandle);
+  });
+});
+
+describe("SendMachPortMessage", function () {
+  it("should send message through mach port", function () {
+    const rHandle = lib.initializeMachPortReceiver("testMachPort3");
+    const sHandle = lib.initializeMachPortSender("testMachPort3");
+
+    assert.ok(rHandle);
+    assert.ok(sHandle);
+
+    lib.sendMachPortMessage(sHandle, 1, "hello world");
+
+    lib.closeSharedMemory(sHandle);
+    lib.closeSharedMemory(rHandle);
+  });
+});
+
+describe("SendAndReceivedMachPortMessage", function () {
+  it("should send and received message through mach port", function () {
+    const rHandle = lib.initializeMachPortReceiver("testMachPort4");
+    const sHandle = lib.initializeMachPortSender("testMachPort4");
+
+    assert.ok(rHandle);
+    assert.ok(sHandle);
+
+    lib.sendMachPortMessage(sHandle, 1, "hello wòrld!!");
+    const msg = lib.waitMachPortMessage(rHandle, "utf8");
+
+    assert.strictEqual(1, msg.msgType);
+    assert.strictEqual("hello wòrld!!", msg.content);
+
+    lib.closeSharedMemory(sHandle);
+    lib.closeSharedMemory(rHandle);
+  });
+});
