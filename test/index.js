@@ -159,3 +159,18 @@ describe("SendAndReceivedMachPortMessage", function () {
     lib.closeSharedMemory(rHandle);
   });
 });
+
+describe("ReceivedMachPortMessageTimeout", function () {
+  it("should wait for message and throw timeout", function () {
+    const rHandle = lib.initializeMachPortReceiver("testMachPort5");
+
+    assert.ok(rHandle);
+
+    assert.throws(
+      () => lib.waitMachPortMessage(rHandle, "utf8", 500),
+      /timeout/
+    );
+
+    lib.closeSharedMemory(rHandle);
+  });
+});

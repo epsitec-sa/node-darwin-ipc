@@ -95,15 +95,16 @@ NAPI_METHOD(InitializeMachPortReceiver)
   NAPI_RETURN_INT32(0)
 }
 
-// MachPortHandle* machPortHandle, int msgType, const byte* content, int contentLength -> int
+// MachPortHandle* machPortHandle, int msgType, const byte* content, int contentLength, int timeout -> int
 NAPI_METHOD(SendMachPortMessage)
 {
-  NAPI_ARGV(4)
+  NAPI_ARGV(5)
 
   NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 0)
   NAPI_ARGV_INT32(msgType, 1)
   NAPI_ARGV_BUFFER_CAST(const char *, content, 2)
   NAPI_ARGV_INT32(contentLength, 3)
+  NAPI_ARGV_INT32(timeout, 4)
 
   mach_message_send message;
 
@@ -123,12 +124,12 @@ NAPI_METHOD(SendMachPortMessage)
 
   // Send the message.
   kern_return_t kr = mach_msg(
-      &message.header, // Same as (mach_msg_header_t *) &message.
-      MACH_SEND_MSG,   // Options. We're sending a message.
-      sizeof(message), // Size of the message being sent.
-      0,               // Size of the buffer for receiving.
-      MACH_PORT_NULL,  // A port to receive a message on, if receiving.
-      MACH_MSG_TIMEOUT_NONE,
+      &message.header,                                       // Same as (mach_msg_header_t *) &message.
+      MACH_SEND_MSG | (timeout > 0 ? MACH_SEND_TIMEOUT : 0), // Options. We're sending a message.
+      sizeof(message),                                       // Size of the message being sent.
+      0,                                                     // Size of the buffer for receiving.
+      MACH_PORT_NULL,                                        // A port to receive a message on, if receiving.
+      timeout > 0 ? timeout : MACH_MSG_TIMEOUT_NONE,
       MACH_PORT_NULL // Port for the kernel to send notifications about this message to.
   );
   if (kr != KERN_SUCCESS)
@@ -139,15 +140,16 @@ NAPI_METHOD(SendMachPortMessage)
   NAPI_RETURN_INT32(0)
 }
 
-// MachPortHandle* machPortHandle, MsgTypeHandle* msgTypeHandle, char* msgBuffer, int msgBufferLength -> int
+// MachPortHandle* machPortHandle, MsgTypeHandle* msgTypeHandle, char* msgBuffer, int msgBufferLength, int timeout -> int
 NAPI_METHOD(WaitMachPortMessage)
 {
-  NAPI_ARGV(4)
+  NAPI_ARGV(5)
 
   NAPI_ARGV_BUFFER_CAST(struct MachPortHandle *, machPortHandle, 0)
   NAPI_ARGV_BUFFER_CAST(struct MsgTypeHandle *, msgTypeHandle, 1)
   NAPI_ARGV_BUFFER_CAST(char *, msgBuffer, 2)
   NAPI_ARGV_INT32(msgBufferLength, 3)
+  NAPI_ARGV_INT32(timeout, 4)
   mach_message_receive message;
 
   if (msgBufferLength < MACH_MESSAGE_CONTENT_LENGTH)
@@ -156,12 +158,12 @@ NAPI_METHOD(WaitMachPortMessage)
   }
 
   kern_return_t kr = mach_msg(
-      &message.header,          // Same as (mach_msg_header_t *) &message.
-      MACH_RCV_MSG,             // Options. We're receiving a message.
-      0,                        // Size of the message being sent, if sending.
-      sizeof(message),          // Size of the buffer for receiving.
-      machPortHandle->machPort, // The port to receive a message on.
-      MACH_MSG_TIMEOUT_NONE,
+      &message.header,                                     // Same as (mach_msg_header_t *) &message.
+      MACH_RCV_MSG | (timeout > 0 ? MACH_RCV_TIMEOUT : 0), // Options. We're receiving a message.
+      0,                                                   // Size of the message being sent, if sending.
+      sizeof(message),                                     // Size of the buffer for receiving.
+      machPortHandle->machPort,                            // The port to receive a message on.
+      timeout > 0 ? timeout : MACH_MSG_TIMEOUT_NONE,
       MACH_PORT_NULL // Port for the kernel to send notifications about this message to.
   );
   if (kr != KERN_SUCCESS)

@@ -3,6 +3,8 @@ const messagingAddon = require("./build/Release/messaging");
 
 const sharedMemoryNameMaxLength = 32;
 const machMessageMaxContentLength = 4096;
+const machSendTimedout = 0x10000004;
+const machReceiveTimedout = 0x10004003;
 
 function isBuffer(value) {
   return (
@@ -133,23 +135,26 @@ function initializeMachPortReceiver(bootstrapPortName) {
   return handle;
 }
 
-function sendMachPortMessage(handle, msgType, data, encoding) {
+function sendMachPortMessage(handle, msgType, data, encoding, timeout) {
   const buf = bufferFromData(data, encoding);
   const res = messagingAddon.SendMachPortMessage(
     handle,
     msgType,
     buf,
-    buf.byteLength
+    buf.byteLength,
+    timeout || 0
   );
 
   if (res === -1) {
     throw `data size (${data.length()}) exceeded maximum msg content size (${machMessageMaxContentLength})`;
+  } else if (res === machSendTimedout) {
+    throw "timeout";
   } else if (res !== 0) {
     throw `could not send mach port message: ${res}`;
   }
 }
 
-function waitMachPortMessage(handle, encoding) {
+function waitMachPortMessage(handle, encoding, timeout) {
   const buf = Buffer.alloc(machMessageMaxContentLength);
   const msgTypeHandle = Buffer.alloc(messagingAddon.sizeof_MsgTypeHandle);
 
@@ -157,11 +162,14 @@ function waitMachPortMessage(handle, encoding) {
     handle,
     msgTypeHandle,
     buf,
-    machMessageMaxContentLength
+    machMessageMaxContentLength,
+    timeout || 0
   );
 
   if (res === -1) {
     throw `data buffer size is less than maximum content size (${machMessageMaxContentLength})`;
+  } else if (res === machReceiveTimedout) {
+    throw "timeout";
   } else if (res !== 0) {
     throw `could not wait mach port message: ${res}`;
   }
